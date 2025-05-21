@@ -1,0 +1,444 @@
+---
+title: "Synchrony calculations for 2018 and 2019"
+output: html_notebook
+---
+
+Performing analysis for year 2018
+
+read the file
+```{r}
+mydata_2018 = read.csv("Kaas_Phenology_2018.csv")
+```
+
+
+Calculating both SIabd and SItemp
+```{r}
+# Extract species codes and phenological data
+species_codes <- mydata_2018$Species_code
+phenological_data <- mydata_2018[, 6:11]
+
+# Define a function to calculate SItemp
+calculate_SItemp <- function(F1, F2, Fo) {
+  SItemp <- Fo / ((F1 + F2) - Fo)
+  return(SItemp)
+}
+
+# Define a function to calculate SIabd
+calculate_SIabd <- function(species1, species2) {
+  # Calculate proportions for each census reading (abundance of less abundant species divided by abundance of more abundant species)
+  proportions <- pmin(species1, species2) / pmax(species1, species2)
+  # Calculate the average proportion where both species were recorded (n)
+  SIabd <- mean(proportions[!is.na(proportions)], na.rm = TRUE)
+  return(SIabd)
+}
+
+# Initialize a data frame to store results for each species pair
+results_df <- data.frame(species1 = character(), species2 = character(),
+                         F1 = numeric(), F2 = numeric(), Fo = numeric(),
+                         SItemp = numeric(), SIabd = numeric(),
+                         stringsAsFactors = FALSE)
+
+# Loop through all species pairs and calculate SItemp and SIabd
+num_species <- nrow(phenological_data)
+
+for (i in 1:(num_species - 1)) {
+  for (j in (i + 1):num_species) {
+    species1 <- phenological_data[i, ]
+    species2 <- phenological_data[j, ]
+    
+    # Calculate total flowering duration (number of census days in flowering)
+    F1 <- sum(!is.na(species1) & species1 != 0)
+    F2 <- sum(!is.na(species2) & species2 != 0)
+    
+    # Calculate temporal overlap in flowering (Fo)
+    Fo <- sum(!is.na(species1) & !is.na(species2) & species1 != 0 & species2 != 0)
+    
+    # Calculate SItemp
+    SItemp <- calculate_SItemp(F1, F2, Fo)
+    
+    # Calculate SIabd only if SItemp > 0
+    if (SItemp > 0) {
+      SIabd <- calculate_SIabd(species1, species2)
+    } else {
+      SIabd <- NA
+    }
+    
+    # Store the results in the data frame
+    results_df <- rbind(results_df, data.frame(species1 = species_codes[i], species2 = species_codes[j],
+                                               F1 = F1, F2 = F2, Fo = Fo, SItemp = SItemp, SIabd = SIabd))
+  }
+}
+
+# Print the final data frame in the desired format
+print(results_df)
+
+#save the final data frame as SI_2018
+SI_2018 <- results_df
+```
+
+Remove all rows with EriSed
+```{r}
+library(dplyr)
+SI_2018 <- SI_2018 %>%
+  filter(!grepl("EriSed", species1) & !grepl("EriSed", species2))
+```
+
+
+Calculating mean SI
+
+```{r}
+
+Mean_SItemp2018= mean(SI_2018$SItemp)
+SD_SItemp2018 = sd(SI_2018$SItemp) 
+sem_SItemp2018= SD_SItemp2018/sqrt(length(SI_2018$SItemp)/2)
+
+Mean_SIabd2018 = mean(SI_2018$SIabd, na.rm = T)
+SD_SIabd2018 = sd(SI_2018$SIabd, na.rm = T) 
+sem_SIabd2018 = SD_SIabd2018/sqrt(sum(!is.na(SI_2018$SIabd))/2)
+```
+
+Save output as csv
+```{r}
+write.csv(SI_2018, file = "Synchrony_Index_2018.csv", na = "NA")
+```
+
+
+Performing analysis for year 2019
+
+read the file
+```{r}
+mydata_2019 = read.csv("Kaas_Phenology_2019.csv")
+```
+
+
+Calculating both SIabd and SItemp
+```{r}
+# Extract species codes and phenological data
+species_codes <- mydata_2019$Species_code
+phenological_data <- mydata_2019[, 6:13]
+
+# Define a function to calculate SItemp
+calculate_SItemp <- function(F1, F2, Fo) {
+  SItemp <- Fo / ((F1 + F2) - Fo)
+  return(SItemp)
+}
+
+# Define a function to calculate SIabd
+calculate_SIabd <- function(species1, species2) {
+  # Calculate proportions for each census reading (abundance of less abundant species divided by abundance of more abundant species)
+  proportions <- pmin(species1, species2) / pmax(species1, species2)
+  # Calculate the average proportion where both species were recorded (n)
+  SIabd <- mean(proportions[!is.na(proportions)], na.rm = TRUE)
+  return(SIabd)
+}
+
+# Initialize a data frame to store results for each species pair
+results_df <- data.frame(species1 = character(), species2 = character(),
+                         F1 = numeric(), F2 = numeric(), Fo = numeric(),
+                         SItemp = numeric(), SIabd = numeric(),
+                         stringsAsFactors = FALSE)
+
+# Loop through all species pairs and calculate SItemp and SIabd
+num_species <- nrow(phenological_data)
+
+for (i in 1:(num_species - 1)) {
+  for (j in (i + 1):num_species) {
+    species1 <- phenological_data[i, ]
+    species2 <- phenological_data[j, ]
+    
+    # Calculate total flowering duration (number of days in flowering)
+    F1 <- sum(!is.na(species1) & species1 != 0)
+    F2 <- sum(!is.na(species2) & species2 != 0)
+    
+    # Calculate temporal overlap in flowering (Fo)
+    Fo <- sum(!is.na(species1) & !is.na(species2) & species1 != 0 & species2 != 0)
+    
+    # Calculate SItemp
+    SItemp <- calculate_SItemp(F1, F2, Fo)
+    
+    # Calculate SIabd only if SItemp > 0
+    if (SItemp > 0) {
+      SIabd <- calculate_SIabd(species1, species2)
+    } else {
+      SIabd <- NA
+    }
+    
+    # Store the results in the data frame
+    results_df <- rbind(results_df, data.frame(species1 = species_codes[i], species2 = species_codes[j],
+                                               F1 = F1, F2 = F2, Fo = Fo, SItemp = SItemp, SIabd = SIabd))
+  }
+}
+
+# Print the final data frame in the desired format
+print(results_df)
+
+#save the final data frame as SI_2019
+SI_2019 <- results_df
+```
+
+Remove all rows with EriSed
+```{r}
+library(dplyr)
+SI_2019 <- SI_2019 %>%
+  filter(!grepl("EriSed", species1) & !grepl("EriSed", species2))
+```
+
+
+
+
+Calculating mean SI
+
+```{r}
+
+Mean_SItemp2019= mean(SI_2019$SItemp)
+SD_SItemp2019 = sd(SI_2019$SItemp) 
+sem_SItemp2019= SD_SItemp2019/sqrt(length(SI_2019$SItemp)/2)
+
+Mean_SIabd2019 = mean(SI_2019$SIabd, na.rm = T)
+SD_SIabd2019 = sd(SI_2019$SIabd, na.rm = T) 
+sem_SIabd2019 = SD_SIabd2019/sqrt(sum(!is.na(SI_2019$SIabd))/2)
+```
+
+
+Save output as csv
+```{r}
+write.csv(SI_2019, file = "Synchrony_Index_2019.csv", na = "NA")
+```
+
+
+Performing analysis for year 2020
+
+read the file
+```{r}
+mydata_2020 = read.csv("Kaas_Phenology_2020.csv")
+```
+
+
+Calculating both SIabd and SItemp
+```{r}
+# Extract species codes and phenological data
+species_codes <- mydata_2020$Species_code
+phenological_data <- mydata_2020[, 6:23]
+
+# Define a function to calculate SItemp
+calculate_SItemp <- function(F1, F2, Fo) {
+  SItemp <- Fo / ((F1 + F2) - Fo)
+  return(SItemp)
+}
+
+# Define a function to calculate SIabd
+calculate_SIabd <- function(species1, species2) {
+  # Calculate proportions for each census reading (abundance of less abundant species divided by abundance of more abundant species)
+  proportions <- pmin(species1, species2) / pmax(species1, species2)
+  # Calculate the average proportion where both species were recorded (n)
+  SIabd <- mean(proportions[!is.na(proportions)], na.rm = TRUE)
+  return(SIabd)
+}
+
+# Initialize a data frame to store results for each species pair
+results_df <- data.frame(species1 = character(), species2 = character(),
+                         F1 = numeric(), F2 = numeric(), Fo = numeric(),
+                         SItemp = numeric(), SIabd = numeric(),
+                         stringsAsFactors = FALSE)
+
+# Loop through all species pairs and calculate SItemp and SIabd
+num_species <- nrow(phenological_data)
+
+for (i in 1:(num_species - 1)) {
+  for (j in (i + 1):num_species) {
+    species1 <- phenological_data[i, ]
+    species2 <- phenological_data[j, ]
+    
+    # Calculate total flowering duration (number of census days in flowering)
+    F1 <- sum(!is.na(species1) & species1 != 0)
+    F2 <- sum(!is.na(species2) & species2 != 0)
+    
+    # Calculate temporal overlap in flowering (Fo)
+    Fo <- sum(!is.na(species1) & !is.na(species2) & species1 != 0 & species2 != 0)
+    
+    # Calculate SItemp
+    SItemp <- calculate_SItemp(F1, F2, Fo)
+    
+    # Calculate SIabd only if SItemp > 0
+    if (SItemp > 0) {
+      SIabd <- calculate_SIabd(species1, species2)
+    } else {
+      SIabd <- NA
+    }
+    
+    # Store the results in the data frame
+    results_df <- rbind(results_df, data.frame(species1 = species_codes[i], species2 = species_codes[j],
+                                               F1 = F1, F2 = F2, Fo = Fo, SItemp = SItemp, SIabd = SIabd))
+  }
+}
+
+# Print the final data frame in the desired format
+print(results_df)
+
+#save the final data frame as SI_2018
+SI_2020 <- results_df
+```
+
+
+Write the species colour and MF-nMF status for respective species in data SI_2020
+```{r}
+# Create a new column in mydata with the corresponding flower color
+library(dplyr)
+SI_2020 <- SI_2020 %>%
+  mutate(col_grp_species1 = mydata_2020$Colour_groups[match(species1, mydata_2020$Species_code)])
+
+SI_2020 <- SI_2020 %>%
+  mutate(col_grp_species2 = mydata_2020$Colour_groups[match(species2, mydata_2020$Species_code)])
+
+SI_2020 <- SI_2020 %>%
+  mutate(MF_nMF_Sp1 = mydata_2020$MF_nMF[match(species1, mydata_2020$Species_code)])
+
+SI_2020 <- SI_2020 %>%
+  mutate(MF_nMF_Sp2 = mydata_2020$MF_nMF[match(species2, mydata_2020$Species_code)])
+
+```
+
+
+Remove all rows with EriSed
+```{r}
+library(dplyr)
+SI_2020 <- SI_2020 %>%
+  filter(!grepl("EriSed", species1) & !grepl("EriSed", species2))
+```
+
+Save output as csv
+```{r}
+write.csv(SI_2020, file = "Synchrony_Index_2020.csv", na = "NA")
+```
+
+
+Calculating mean SI
+
+```{r}
+Mean_SItemp2020= mean(SI_2020$SItemp)
+SD_SItemp2020 = sd(SI_2020$SItemp) 
+sem_SItemp2020= SD_SItemp2020/sqrt(length(SI_2020$SItemp)/2)
+
+Mean_SIabd2020 = mean(SI_2020$SIabd, na.rm = T)
+SD_SIabd2020 = sd(SI_2020$SIabd, na.rm = T) 
+sem_SIabd2020 = SD_SIabd2020/sqrt(sum(!is.na(SI_2020$SIabd))/2)
+```
+
+
+
+Comparing SItemp and SIabd among colour groups.
+
+```{r}
+# first combinie values of two colour columns to create a unique colour combination
+SI_2020$Col_grp_Sp12<-paste(SI_2020$col_grp_species1, SI_2020$col_grp_species2, sep="_")
+
+#calculating mean and sem for the each colour comparison for SItemp
+library(plyr)
+
+aa = ddply(SI_2020, .(Col_grp_Sp12), summarise,
+                                      Mean_SItemp = mean(SItemp),
+                                      SD = sd(SItemp),
+                                      sem = SD/ sqrt(length(SItemp)))
+aa
+
+
+#drop NA rows from SIabd column
+library(tidyr)
+SI_2020_abd = SI_2020 %>% drop_na(SIabd)
+
+bb = ddply(SI_2020_abd, .(Col_grp_Sp12), summarise,
+                                      Mean_SIabd = mean(SIabd, na.rm = T),
+                                      SD = sd(SIabd, na.rm = T),
+                                      sem = SD/ sqrt(length(SIabd)))
+bb
+
+
+aabb <- cbind(aa, bb)
+write.csv(aabb, file = "mean_sem for colour group combinations_2020 data.csv")
+
+```
+
+performing test for SItemp
+```{r}
+kruskal.test(SItemp ~ Col_grp_Sp12, data = SI_2020)
+
+library(dunn.test)
+dunn.test(SI_2020$SItemp, SI_2020$Col_grp_Sp12)
+```
+Similarly running test for for SIabd
+
+
+
+performing test for SIabd
+```{r}
+kruskal.test(SIabd ~ Col_grp_Sp12, data = SI_2020_abd)
+
+library(dunn.test)
+dunn.test(SI_2020_abd$SIabd, SI_2020_abd$Col_grp_Sp12)
+```
+
+
+Analysing synchrony among/within MF and nMF species
+
+```{r}
+# first combinie values of two colour columns to create a unique MF_nMF combination
+SI_2020$MF_nMF_Sp12<-paste(SI_2020$MF_nMF_Sp1, SI_2020$MF_nMF_Sp2, sep="_")
+
+
+#replace nMF_MF as MF_nMF
+SI_2020$MF_nMF_Sp12[SI_2020$MF_nMF_Sp12 == "nMF_MF"] <- "MF_nMF"
+
+#calculating mean and sem for SItemp for MF and nMF groups
+library(plyr)
+
+cc = ddply(SI_2020, .(MF_nMF_Sp12), summarise,
+                                      Mean = mean(SItemp),
+                                      SD = sd(SItemp),
+                                      sem = SD/ sqrt(length(SItemp)))
+cc
+
+
+#drop NA rows from SIabd column
+library(tidyr)
+SI_2020_abd = SI_2020 %>% drop_na(SIabd)
+
+dd = ddply(SI_2020_abd, .(MF_nMF_Sp12), summarise,
+                                      Mean = mean(SIabd, na.rm = T),
+                                      SD = sd(SIabd, na.rm = T),
+                                      sem = SD/ sqrt(length(SIabd)))
+dd
+
+ccdd = rbind(cc, dd)
+write.csv(ccdd, file = "mean_sem for MF and nMF species_2020 data.csv")
+```
+
+Calculating similar means for each colour group
+```{r}
+#calculating mean and sem for SItemp for MF and nMF groups
+library(plyr)
+
+ee = ddply(SI_2020, .(Col_grp_Sp12, MF_nMF_Sp12), summarise,
+                                      Mean_SItemp = mean(SItemp),
+                                      SD = sd(SItemp),
+                                      sem = SD/ sqrt(length(SItemp)))
+ee
+
+
+#drop NA rows from SIabd column
+library(tidyr)
+SI_2020_abd = SI_2020 %>% drop_na(SIabd)
+
+ff = ddply(SI_2020_abd, .(Col_grp_Sp12, MF_nMF_Sp12), summarise,
+                                      Mean_SIabd = mean(SIabd, na.rm = T),
+                                      SD = sd(SIabd, na.rm = T),
+                                      sem = SD/ sqrt(length(SIabd)))
+ff
+
+eeff = cbind(ee, ff)
+write.csv(eeff, file = "mean_sem for MF_nMF comparisons for colour group combinations_2020 data.csv")
+```
+
+
+
+
+
