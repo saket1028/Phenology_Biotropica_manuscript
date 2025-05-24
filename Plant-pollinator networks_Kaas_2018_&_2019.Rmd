@@ -1,0 +1,593 @@
+---
+title: "Plant-pollinator Networks_Kaas_2018_&_2019"
+output: html_notebook
+---
+
+*"Kaas 2018 & 2019: Plant-pollinator network"*
+
+**Plotting overall flowering season: 2018 & 2019 combined**
+
+1. Running libraries
+
+```{r}
+library(r2d3)
+library(bipartite)
+library(purrr) 
+library(dplyr) 
+library(tidyr) 
+library(stringr)
+library(tibble)
+library(RColorBrewer)
+library(bipartiteD3)
+library(reshape2)
+library(googlesheets4)
+```
+
+2. Load and read data
+
+```{r}
+#Read googlesheets
+data_network <- read_sheet('https://docs.google.com/spreadsheets/URL_has_been_removed', sheet = 1)
+```
+3. Process data
+
+```{r}
+
+#My data set does not have the average of the visitation rate per unique plant-pollinator combination
+#To take average visitation rate per unique plant-pollinator combination
+library(plyr)
+
+#Extracting the data I require for network analysis and calculating the mean visitation rate
+#Extract data mentioning the column names and not numbers because later you may add or remove some
+
+sub_data <- ddply(data_network, .(Flo_sp, Pollinator_type), summarize, mean=mean(visitation_rate_per_flower_per_hour, na.rm = TRUE))
+
+#To find the rows in which pollinator type is NA. With '!' the places with NA will be marked as FALSE and not considered in data-set.
+a <- !is.na(sub_data$Pollinator_type) 
+sub_data_mean <- sub_data[a,]
+
+#Added the column with WebID as KAAS for 130 rows as bipartite function requires WebID
+WebID = c(rep("KAAS", 130))
+sub_data_mean2 = cbind(sub_data_mean, WebID)
+
+#using dcast function to convert long format to wide format, as plotweb function requires the data in short format
+library(reshape2)
+library(readr)
+
+#I would use the data with removed NA values, and no webID, which is 'sub_data_mean'
+#Function 'dcast': data.frame will be automatically converted to data.table, as is needed for plotweb function 
+mydata_dcast <- dcast(sub_data_mean2, Flo_sp ~ Pollinator_type, value.var = "mean")
+
+#Replacing all NA with zeros
+mydata_dcast[is.na(mydata_dcast)] = 0
+
+#Removing the 8th column as the column name is 'NA' with all 0 values
+mydata_dcast = mydata_dcast[,-8]
+
+row.names(mydata_dcast) <- mydata_dcast$Flo_sp
+
+#Remove the first column
+mydata_dcast = mydata_dcast[,-1]
+
+#Round of the values to 1 decimal point
+mydata_dcast2 = round(mydata_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+data_final <- mydata_dcast2[rowSums(mydata_dcast2[])>0,]
+
+```
+
+4. Plotting the non-interactive network
+
+```{r}
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low <- c("IsoLop","HabHey","ParCoe","PinCon","EriSed","PolChi","SmiBig","SmiHir","LinMys","ImpDal","SenBom","MurLan","MurBro","SopDel","RotFlo","DesRac","ImpTom","JusDif","ImpBal","ImpLaw","PogDec","UtrPur","ExaPum","SolAng","MurSim","NeaMon","VigVex","AsyDal","AdeInd","StrSes","CyaFas","CyaTub","ComBen")
+
+#Using updated hex codes by taking average of the floral colour, rather than a single pixel
+col_low <- c("IsoLop"="#d8d3d4","HabHey"="#cbccce","ParCoe"="#bfbebe","PinCon"="#bebdb5","EriSed"="#d0ccbe","PolChi"="#dedcae","SmiBig"="#fac926","SmiHir"="#e6b302","LinMys"="#dcc103","ImpDal"="#d9c636","SenBom"="#cdc131","MurLan"="#c19968","MurBro"="#db8051","SopDel"="#b36392","RotFlo"="#b64d8a","DesRac"="#c145a9","ImpTom"="#ef4ada","JusDif"="#b478ba","ImpBal"="#b36ebb","ImpLaw"="#9a4f95","PogDec"="#6a427a","UtrPur"="#583796","ExaPum"="#613e9d","SolAng"="#613e9d","MurSim"="#8f82b8","NeaMon"="#c699e7","VigVex"="#a57eb3","AsyDal"="#a175b3","AdeInd"="#a174bf","StrSes"="#8b6dc9","CyaFas"="#8a61f2","CyaTub"="#6253d2","ComBen"="#2b428e")
+
+seq.high <- c("Bee","Beetle","Fly","Wasp","Ant","Butterfly","Moth")
+
+col_high <-c("Bee"="#800000","Beetle"="#F08080","Fly"="#DC143C","Wasp"="#20B2AA","Ant"="#008080","Butterfly"="#FF7F50","Moth"="#98FB98")
+
+#creating a list of two with two names vectors 
+sequence <- list(seq.higher=seq.high, seq.lower=seq.low)
+web.ordered <- sortweb(data_final, sort.order="seq", sequence=sequence)
+
+plotweb(web.ordered, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.213, col.low= col_low, col.high = col_high, bor.col.low = col_low, bor.col.high = col_high, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#To save image
+#png(filename = "Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in", bg = "white", res = 300)
+#plotweb(web.ordered, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.213, col.low= col_low, col.high = col_high, bor.col.low = col_low, bor.col.high = col_high, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+5. Plotting the interactive network
+
+Function frame2webs: To convert a table of observations (typically compiled in a spreadsheet program) into a network matrix for further use in bipartite.
+
+```{r}
+data.network <- frame2webs(sub_data_mean2, varnames = c("Flo_sp", "Pollinator_type", "WebID", "mean"))
+
+#this will give only html output (interactive)
+library(knitr)
+bipartite_D3(data.network, PrimaryLab = 'Plants', SecondaryLab = 'Pollinators', PercentageDecimals = 3, filename = 'Overall_network_combined_2018_&_2019') 
+
+```
+
+6. Calculate indices: Overall flowering season for both the years (2018 & 2019)
+
+```{r}
+
+#To calculate the indices at network level
+b <- networklevel(data.network [[1]], index="ALLBUTDD", level="both", weighted=TRUE, ISAmethod="Bluethgen", SAmethod = "Bluethgen", extinctmethod = "r", nrep = 100, CCfun=median, dist="horn", normalise=TRUE, empty.web=TRUE, logbase="e", intereven="prod", H2_integer=TRUE, fcweighted=TRUE, fcdist="euclidean", legacy=FALSE)
+
+write.csv(b, file = "Cumulative_networklevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Plants
+c <- specieslevel(data.network [[1]], index="ALLBUTD", level="lower", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(c, file = "Cumulative_Plant_specieslevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Pollinators
+d <- specieslevel(data.network [[1]], index="ALLBUTD", level="higher", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(d, file = "Cumulative_Pollinator_specieslevel_indices_kaas_2018_&_2019.csv")
+```
+
+**Plotting season-wise network: 2018 & 2019 combined**
+
+That is:
+1. Pre-peak 
+2. Peak 
+3. Post-peak 
+
+For this, we need to take mean of visitation rates according to census per species and pollinator type pair
+
+1. Data processing
+
+```{r}
+#taking mean
+library(plyr)
+season_data_mean <- ddply(data_network, .(Flo_sp, Pollinator_type, Season), summarize, mean = mean(visitation_rate_per_flower_per_hour, Season = any(Season),  na.rm = TRUE))
+#here month column can be used as WEBID
+
+#To find the rows in which pollinator type is NA. With '!' the places with NA will be marked as FALSE and not considered in data-set.
+x <- !is.na(season_data_mean$Pollinator_type) 
+sub_season_data_mean <- season_data_mean[x,]
+
+#Added the column with WebID as KAAS for 194 rows as bipartite function requires WebID
+WebID = c(rep("KAAS", 194))
+sub_season_data_mean2 = cbind(sub_season_data_mean, WebID)
+
+```
+
+2. Forming a network matrix
+
+```{r}
+data.network.season <- frame2webs(sub_season_data_mean2, varnames = c("Flo_sp", "Pollinator_type", "Season", "mean") )
+```
+
+3. Plotting an interactive network
+
+```{r}
+#this will give only html output (interactive)
+
+bipartite_D3(data.network.season, PrimaryLab = 'Plants', SecondaryLab = 'Pollinators', PercentageDecimals = 1, filename = 'network_season_wise_2018_&_2019')
+```
+4. Plotting the non-interactive network
+
+```{r}
+
+#Sort the data according to seasons, i.e., extract the data season-wise
+
+Pre_peak_network_data<- subset(sub_season_data_mean2, sub_season_data_mean2$Season == "Pre-peak")
+Peak_network_data<- subset(sub_season_data_mean2, sub_season_data_mean2$Season == "Peak")
+Post_peak_network_data<- subset(sub_season_data_mean2, sub_season_data_mean2$Season == "Post-peak")
+
+```
+
+```{r}
+
+#**For Pre-peak**
+
+Pre_peak_dcast<-dcast(Pre_peak_network_data, Flo_sp ~ Pollinator_type, value.var = "mean")  
+#Replacing all NA with zeros
+Pre_peak_dcast[is.na(Pre_peak_dcast)]=0
+#Removing the 6th column as the column name is 'NA'
+Pre_peak_dcast = Pre_peak_dcast[,-6]
+row.names(Pre_peak_dcast) <- Pre_peak_dcast$Flo_sp
+#Remove the first column
+Pre_peak_dcast = Pre_peak_dcast[,-1]
+
+#Round of the values to 1 decimal point
+Pre_peak_dcast2 = round(Pre_peak_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+Pre_peak_final <- Pre_peak_dcast2[rowSums(Pre_peak_dcast2[])>0,]
+
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low_pre <- c("HabHey","ParCoe","PinCon","EriSed","ImpDal","SenBom","ImpTom","JusDif","ImpBal","ImpLaw","PogDec","ExaPum","MurSim","NeaMon","CyaTub")
+
+col_low_pre <- c("HabHey"="#cbccce","ParCoe"="#bfbebe","PinCon"="#bebdb5","EriSed"="#d0ccbe","ImpDal"="#d9c636","SenBom"="#cdc131","ImpTom"="#ef4ada","JusDif"="#b478ba","ImpBal"="#b36ebb","ImpLaw"="#9a4f95","PogDec"="#6a427a","ExaPum"="#613e9d","MurSim"="#8f82b8","NeaMon"="#c699e7","CyaTub"="#6253d2")
+
+seq.high_pre <- c("Fly","Bee","Beetle","Wasp","Ant")
+
+col_high_pre <-c("Fly"="#DC143C","Bee"="#800000","Beetle"="#F08080","Wasp"="#20B2AA","Ant"="#008080")
+
+#creating a list of two with two names vectors
+sequence_pre <- list(seq.higher=seq.high_pre, seq.lower=seq.low_pre)
+web.ordered_pre <- sortweb(Pre_peak_final, sort.order="seq", sequence=sequence_pre)
+
+plotweb(web.ordered_pre, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.135, col.low= col_low_pre, col.high = col_high_pre, bor.col.low = col_low_pre, bor.col.high = col_high_pre, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#Copy-paste the code for plotweb in new 'R Script' to export the image as png with the desired aspect ratio (1600 width x 850 height)
+#png(filename = "Pre-peak_Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in",bg = "white", res = 300)
+#plotweb(web.ordered_pre, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.135, col.low= col_low_pre, col.high = col_high_pre, bor.col.low = col_low_pre, bor.col.high = col_high_pre, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+**For Peak flowering season**
+
+```{r}
+
+Peak_dcast<-dcast(Peak_network_data, Flo_sp ~ Pollinator_type, value.var = "mean")  
+#Replacing all NA with zeros
+Peak_dcast[is.na(Peak_dcast)]=0
+#Removing the 8th column as the column name is 'NA'
+Peak_dcast = Peak_dcast[,-8]
+row.names(Peak_dcast) <- Peak_dcast$Flo_sp
+#Remove the first column
+Peak_dcast = Peak_dcast[,-1]
+
+#Round of the values to 1 decimal point
+Peak_dcast2 = round(Peak_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+Peak_final <- Peak_dcast2[rowSums(Peak_dcast2[])>0,]
+
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low_peak <- c("IsoLop","ParCoe","PinCon","EriSed","SmiBig","SmiHir","SenBom","MurLan","MurBro","SopDel","RotFlo","ImpTom","JusDif","ImpBal","PogDec","UtrPur","SolAng","MurSim","NeaMon","AsyDal","AdeInd","StrSes","CyaFas","CyaTub","ComBen")
+
+col_low_peak <- c("IsoLop"="#d8d3d4","ParCoe"="#bfbebe","PinCon"="#bebdb5","EriSed"="#d0ccbe","SmiBig"="#fac926","SmiHir"="#e6b302","SenBom"="#cdc131","MurLan"="#c19968","MurBro"="#db8051","SopDel"="#b36392","RotFlo"="#b64d8a","ImpTom"="#ef4ada","JusDif"="#b478ba","ImpBal"="#b36ebb","PogDec"="#6a427a","UtrPur"="#583796","SolAng"="#613e9d","MurSim"="#8f82b8","NeaMon"="#c699e7","AsyDal"="#a175b3","AdeInd"="#a174bf","StrSes"="#8b6dc9","CyaFas"="#8a61f2","CyaTub"="#6253d2","ComBen"="#2b428e")
+
+seq.high_peak <- c("Bee","Fly","Beetle","Butterfly","Wasp","Moth")
+
+col_high_peak <-c("Bee"="#800000","Fly"="#DC143C","Beetle"="#F08080","Butterfly"="#FF7F50","Wasp"="#20B2AA","Moth"="#98FB98")
+
+#creating a list of two with two names vectors
+sequence_peak <- list(seq.higher=seq.high_peak, seq.lower=seq.low_peak)
+web.ordered_peak <- sortweb(Peak_final, sort.order="seq", sequence=sequence_peak)
+
+plotweb(web.ordered_peak, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.193, col.low= col_low_peak, col.high = col_high_peak, bor.col.low = col_low_peak, bor.col.high = col_high_peak, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#Copy-paste the code for plotweb in new 'R Script' to export the image as png with the desired aspect ratio 
+#(1600 width x 850 height)
+#png(filename = "Peak_Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in",bg = "white", res = 300)
+#plotweb(web.ordered_peak, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.193, col.low= col_low_peak, col.high = col_high_peak, bor.col.low = col_low_peak, bor.col.high = col_high_peak, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+**For Post-peak flowering season**
+
+```{r}
+
+Post_peak_dcast<-dcast(Post_peak_network_data, Flo_sp ~ Pollinator_type, value.var = "mean")  
+#Replacing all NA with zeros
+Post_peak_dcast[is.na(Post_peak_dcast)]=0
+#Removing the 8th column as the column name is 'NA'
+Post_peak_dcast = Post_peak_dcast[,-8]
+row.names(Post_peak_dcast) <- Post_peak_dcast$Flo_sp
+#Remove the first column
+Post_peak_dcast = Post_peak_dcast[,-1]
+
+#Round of the values to 1 decimal point
+Post_peak_dcast2 = round(Post_peak_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+Post_peak_final <- Post_peak_dcast2[rowSums(Post_peak_dcast2[])>0,]
+
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low_post <- c("IsoLop","ParCoe","PolChi","SmiBig","SmiHir","LinMys","SenBom","MurLan", "MurBro","SopDel","RotFlo","DesRac","PogDec","SolAng","NeaMon","VigVex","AdeInd","StrSes","CyaTub","ComBen")
+
+col_low_post <- c("IsoLop"="#d8d3d4","ParCoe"="#bfbebe","PolChi"="#dedcae","SmiBig"="#fac926","SmiHir"="#e6b302","LinMys"="#dcc103","SenBom"="#cdc131","MurLan"="#c19968","MurBro"="#db8051","SopDel"="#b36392","RotFlo"="#b64d8a","DesRac"="#c145a9","PogDec"="#6a427a","SolAng"="#613e9d","NeaMon"="#c699e7","VigVex"="#a57eb3","AdeInd"="#a174bf","StrSes"="#8b6dc9","CyaTub"="#6253d2","ComBen"="#2b428e")
+
+seq.high_post <- c("Bee","Beetle","Fly","Wasp","Butterfly","Moth","Ant")
+
+col_high_post <-c("Bee"="#800000","Beetle"="#F08080","Fly"="#DC143C","Wasp"="#20B2AA","Butterfly"="#FF7F50","Moth"="#98FB98","Ant"="#008080")
+
+#creating a list of two with two names vectors
+sequence_post <- list(seq.higher=seq.high_post, seq.lower=seq.low_post)
+web.ordered_post <- sortweb(Post_peak_final, sort.order="seq", sequence=sequence_post)
+
+plotweb(web.ordered_post, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.127, col.low= col_low_post, col.high = col_high_post, bor.col.low = col_low_post, bor.col.high = col_high_post, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#Copy-paste the code for plotweb in new 'R Script' to export the image as png with the desired aspect ratio 
+#(1600 width x 850 height)
+#png(filename = "Post-peak_Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in",bg = "white", res = 300)
+#plotweb(web.ordered_post, method="normal", text.rot=90, labsize=2.0, low.spacing=0.04, high.spacing=0.127, col.low= col_low_post, col.high = col_high_post, bor.col.low = col_low_post, bor.col.high = col_high_post, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+5. Calculating indices: Season-wise across both years (2018 & 2019)
+
+5.1 : Pre-peak season
+5.2 : Peak season
+5.3 : Post-peak season
+
+
+
+5.1 : Pre-peak season
+
+```{r}
+
+#To calculate the indices, we need the data in network matrix format.
+#'frame2webs' coverts table of observations into network matrix
+#I am using the sub-setted data after taking mean
+
+pre.data.network <- frame2webs(Pre_peak_network_data, varnames = c("Flo_sp", "Pollinator_type", "WebID", "mean"))
+
+#To calculate the indices at network level
+b_pre <- networklevel(pre.data.network [[1]], index="ALLBUTDD", level="both", weighted=TRUE, ISAmethod="Bluethgen", SAmethod = "Bluethgen", extinctmethod = "r", nrep = 100, CCfun=median, dist="horn", normalise=TRUE, empty.web=TRUE, logbase="e", intereven="prod", H2_integer=TRUE, fcweighted=TRUE, fcdist="euclidean", legacy=FALSE)
+
+write.csv(b_pre, file = "PRE-PEAK_networklevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Plants
+c_pre <- specieslevel(pre.data.network [[1]], index="ALLBUTD", level="lower", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(c_pre, file = "PRE-PEAK_plant_specieslevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Pollinators
+d_pre <- specieslevel(pre.data.network [[1]], index="ALLBUTD", level="higher", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(d_pre, file = "PRE-PEAK_pollinator_specieslevel_indices_kaas_2018_&_2019.csv")
+```
+
+5.2 : Peak season
+
+```{r}
+
+peak.data.network <- frame2webs(Peak_network_data, varnames = c("Flo_sp", "Pollinator_type", "WebID", "mean"))
+
+#To calculate the indices at network level
+b_peak <- networklevel(peak.data.network[[1]], index="ALLBUTDD", level="both", weighted=TRUE, ISAmethod="Bluethgen", SAmethod = "Bluethgen", extinctmethod = "r", nrep = 100, CCfun=median, dist="horn", normalise=TRUE, empty.web=TRUE, logbase="e", intereven="prod", H2_integer=TRUE, fcweighted=TRUE, fcdist="euclidean", legacy=FALSE)
+
+write.csv(b_peak, file = "PEAK_networklevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Plants
+c_peak <- specieslevel(peak.data.network [[1]], index="ALLBUTD", level="lower", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(c_peak, file = "PEAK_plant_specieslevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Pollinators
+d_peak <- specieslevel(peak.data.network [[1]], index="ALLBUTD", level="higher", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(d_peak, file = "PEAK_pollinator_specieslevel_indices_kaas_2018_&_2019.csv")
+```
+
+5.3 : Post-peak season
+
+```{r}
+
+post.data.network <- frame2webs(Post_peak_network_data, varnames = c("Flo_sp", "Pollinator_type", "WebID", "mean"))
+
+#To calculate the indices at network level
+b_post <- networklevel(post.data.network [[1]], index="ALLBUTDD", level="both", weighted=TRUE, ISAmethod="Bluethgen", SAmethod = "Bluethgen", extinctmethod = "r", nrep = 100, CCfun=median, dist="horn", normalise=TRUE, empty.web=TRUE, logbase="e", intereven="prod", H2_integer=TRUE, fcweighted=TRUE, fcdist="euclidean", legacy=FALSE)
+
+write.csv(b_post, file = "POST-PEAK_networklevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Plants
+c_post <- specieslevel(post.data.network [[1]], index="ALLBUTD", level="lower", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(c_post, file = "POST-PEAK_plant_specieslevel_indices_kaas_2018_&_2019.csv")
+
+#To calculate the indices at species level: Pollinators
+d_post <- specieslevel(post.data.network [[1]], index="ALLBUTD", level="higher", logbase=exp(1), low.abun=NULL, high.abun=NULL, PDI.normalise=TRUE, PSI.beta=c(1,0), nested.method="NODF", nested.normalised=TRUE, nested.weighted=TRUE, empty.web=TRUE)
+
+write.csv(d_post, file = "POST-PEAK_pollinator_specieslevel_indices_kaas_2018_&_2019.csv")
+```
+
+**Plotting MF-nMF network: 2018 & 2019 combined**
+1. MF
+2. nMF
+
+For this, we need to take mean of visitation rates according to MF/nMF per species and pollinator type pair
+
+1. Data processing
+
+```{r}
+#taking mean
+library(plyr)
+abundance_data_mean <- ddply(data_network, .(Flo_sp, Pollinator_type, MF_nMF), summarize, mean = mean(visitation_rate_per_flower_per_hour, MF_nMF = any(MF_nMF),  na.rm = TRUE))
+#here MF_nMF column can be used as WEBID
+
+#To find the rows in which pollinator type is NA. With '!' the places with NA will be marked as FALSE and not considered in data-set.
+x <- !is.na(abundance_data_mean$Pollinator_type) 
+sub_abundance_data_mean <- abundance_data_mean[x,]
+
+#Added the column with WebID as KAAS for 130 rows as bipartite function requires WebID
+WebID = c(rep("KAAS", 130))
+sub_abundance_data_mean2 = cbind(sub_abundance_data_mean, WebID)
+
+```
+
+2. Forming a network matrix
+
+```{r}
+data.network.abundance <- frame2webs(sub_abundance_data_mean2, varnames = c("Flo_sp", "Pollinator_type", "MF_nMF", "mean") )
+```
+
+3. Plotting an interactive network
+
+```{r}
+#this will give only html output (interactive)
+
+bipartite_D3(data.network.abundance, PrimaryLab = 'Plants', SecondaryLab = 'Pollinators', PercentageDecimals = 1, filename = 'network_abundance_wise_2018_&_2019')
+```
+
+4. Plotting the non-interactive network
+
+```{r}
+
+#Sort the data according to MF/nMF, i.e., extract the data abundance-wise
+
+MF_data<- subset(sub_abundance_data_mean2, sub_abundance_data_mean$MF_nMF == "MF")
+nMF_data<- subset(sub_abundance_data_mean2, sub_abundance_data_mean2$MF_nMF == "nMF")
+
+```
+
+```{r}
+
+#**For MF**
+
+MF_dcast<-dcast(MF_data, Flo_sp ~ Pollinator_type, value.var = "mean")  
+#Replacing all NA with zeros
+MF_dcast[is.na(MF_dcast)]=0
+#Removing the 8th column as the column name is 'NA'
+MF_dcast = MF_dcast[,-8]
+row.names(MF_dcast) <- MF_dcast$Flo_sp
+#Remove the first column
+MF_dcast = MF_dcast[,-1]
+
+#Round of the values to 1 decimal point
+MF_dcast2 = round(MF_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+MF_final <- MF_dcast2[rowSums(MF_dcast2[])>0,]
+
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low_MF <- c("EriSed","SenBom","LinMys","SmiHir","ImpTom","RotFlo","ImpLaw","UtrPur","CyaFas")
+              
+col_low_MF <- c("EriSed"="#d0ccbe","SenBom"="#cdc131","LinMys"="#dcc103","SmiHir"="#e6b302","ImpTom"="#ef4ada","RotFlo"="#b64d8a","ImpLaw"="#9a4f95","UtrPur"="#583796","CyaFas"="#8a61f2")
+                 
+seq.high_MF <- c("Bee","Fly","Beetle","Wasp","Ant","Butterfly","Moth")
+
+col_high_MF <-c("Bee"="#800000","Fly"="#DC143C","Beetle"="#F08080","Wasp"="#20B2AA","Ant"="#008080","Butterfly"="#FF7F50","Moth"="#98FB98")
+
+#creating a list of two with two names vectors
+sequence_MF <- list(seq.higher=seq.high_MF, seq.lower=seq.low_MF)
+web.ordered_MF <- sortweb(MF_final, sort.order="seq", sequence=sequence_MF)
+
+plotweb(web.ordered_MF, method="normal", text.rot=90, labsize=2.0, low.spacing=0.05, high.spacing=0.064, col.low= col_low_MF, col.high = col_high_MF, bor.col.low = col_low_MF, bor.col.high = col_high_MF, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#Copy-paste the code for plotweb in new 'R Script' to export the image as png with the desired aspect ratio (1600 width x 850 height)
+#png(filename = "MF_Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in",bg = "white", res = 300)
+#plotweb(web.ordered_MF, method="normal", text.rot=90, labsize=2.0, low.spacing=0.05, high.spacing=0.064, col.low= col_low_MF, col.high = col_high_MF, bor.col.low = col_low_MF, bor.col.high = col_high_MF, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+```{r}
+
+#**For nMF**
+
+nMF_dcast<-dcast(nMF_data, Flo_sp ~ Pollinator_type, value.var = "mean")  
+#Replacing all NA with zeros
+nMF_dcast[is.na(nMF_dcast)]=0
+#Removing the 8th column as the column name is 'NA'
+nMF_dcast = nMF_dcast[,-8]
+row.names(nMF_dcast) <- nMF_dcast$Flo_sp
+#Remove the first column
+nMF_dcast = nMF_dcast[,-1]
+
+#Round of the values to 1 decimal point
+nMF_dcast2 = round(nMF_dcast, 1)
+
+#removing the species that have all 0, that is, no visitation by any pollinator type
+#subsetting the data as 'data_final'
+
+nMF_final <- nMF_dcast2[rowSums(nMF_dcast2[])>0,]
+
+#To plot species as per your desired sequence, add them in a sequence inside a particular vector and mention it as 'seq.high' and 'seq.low' in plotweb function.
+
+seq.low_nMF <- c("IsoLop","HabHey","ParCoe","PinCon","PolChi","SmiBig","ImpDal","MurLan","MurBro","SopDel","DesRac","JusDif","ImpBal","PogDec","ExaPum","SolAng","MurSim","NeaMon","VigVex","AsyDal","AdeInd","StrSes","CyaTub","ComBen") 
+              
+col_low_nMF <- c("IsoLop"="#d8d3d4","HabHey"="#cbccce","ParCoe"="#bfbebe","PinCon"="#bebdb5","PolChi"="#dedcae","SmiBig"="#fac926","ImpDal"="#d9c636","MurLan"="#c19968","MurBro"="#db8051","SopDel"="#b36392","DesRac"="#c145a9","JusDif"="#b478ba","ImpBal"="#b36ebb","PogDec"="#6a427a","ExaPum"="#613e9d","SolAng"="#613e9d","MurSim"="#8f82b8","NeaMon"="#c699e7","VigVex"="#a57eb3","AsyDal"="#a175b3","AdeInd"="#a174bf","StrSes"="#8b6dc9","CyaTub"="#6253d2","ComBen"="#2b428e")
+                 
+seq.high_nMF <- c("Bee","Beetle","Fly","Wasp","Ant","Butterfly","Moth")
+
+col_high_nMF <-c("Bee"="#800000","Beetle"="#F08080","Fly"="#DC143C","Wasp"="#20B2AA","Ant"="#008080","Butterfly"="#FF7F50","Moth"="#98FB98")
+
+#creating a list of two with two names vectors
+sequence_nMF <- list(seq.higher=seq.high_nMF, seq.lower=seq.low_nMF)
+web.ordered_nMF <- sortweb(nMF_final, sort.order="seq", sequence=sequence_nMF)
+
+plotweb(web.ordered_nMF, method="normal", text.rot=90, labsize=2.0, low.spacing=0.1, high.spacing=0.375, col.low= col_low_nMF, col.high = col_high_nMF, bor.col.low = col_low_nMF, bor.col.high = col_high_nMF, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+
+#Copy-paste the code for plotweb in new 'R Script' to export the image as png with the desired aspect ratio (1600 width x 850 height)
+#png(filename = "nMF_Kaas_pollination_network_2018_&_2019.png", width = 16, height = 8.5, units = "in",bg = "white", res = 300)
+#plotweb(web.ordered_nMF, method="normal", text.rot=90, labsize=2.0, low.spacing=0.1, high.spacing=0.375, col.low= col_low_nMF, col.high = col_high_nMF, bor.col.low = col_low_nMF, bor.col.high = col_high_nMF, text.high.col = "black", text.low.col = "black", col.interaction = "gray", bor.col.interaction = "gray")
+#dev.off()
+
+```
+
+
+
+**Nested contribution according species: Cumulative network**
+
+```{r}
+nestcont = nestedcontribution(data_final, nsimul = 100)
+
+#To save the output as csv file as it provides the data in list format. 
+#Use the $ sign to separately save for pollinators and plants.
+
+write.csv(nestcont$`higher level`, file = "CUMULATIVE_Nested_contri_pollinator_Kaas_2018_&_2019.csv")
+
+write.csv(nestcont$`lower level`, file = "CUMULATIVE_Nested_contri_plant_Kaas_2018_&_2019.csv")
+```
+
+**Nested contribution according species: season-wise network**
+
+1. Pre-peak network:
+```{r}
+
+nestcont_pre = nestedcontribution(Pre_peak_final, nsimul = 100)
+
+write.csv(nestcont_pre$`higher level`, file = "PRE-PEAK_Nested_contri_pollinator_Kaas_2018_&_2019.csv")
+
+write.csv(nestcont_pre$`lower level`, file = "PRE-PEAK_Nested_contri_plant_Kaas_2018_&_2019.csv")
+
+```
+
+2. Peak network:
+```{r}
+
+nestcont_peak = nestedcontribution(Peak_final, nsimul = 100)
+
+write.csv(nestcont_peak$`higher level`, file = "PEAK_Nested_contri_pollinator_Kaas_2018_&_2019.csv")
+
+write.csv(nestcont_peak$`lower level`, file = "PEAK_Nested_contri_plant_Kaas_2018_&_2019.csv")
+```
+
+3. Post-peak network:
+```{r}
+nestcont_post = nestedcontribution(Post_peak_final, nsimul = 100)
+
+write.csv(nestcont_post$`higher level`, file = "POST-PEAK_Nested_contri_pollinator_Kaas_2018_&_2019.csv")
+
+write.csv(nestcont_post$`lower level`, file = "POST-PEAK_Nested_contri_plant_Kaas_2018_&_2019.csv")
+
+```
+
+
+
+
